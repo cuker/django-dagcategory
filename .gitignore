@@ -1,0 +1,3 @@
+*.pyc
+*~
+/django_dagcategory.egg-info
