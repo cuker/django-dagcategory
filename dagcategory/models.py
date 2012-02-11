@@ -89,7 +89,6 @@ class DAGCategory(models.Model):
     # Magical path that is filled out inefficiently on pre-save
     # This is costly on save, but very effective when selecting parents
     path   = models.CharField(max_length=255, blank=True, db_index=True, editable=False)
-    order  = models.PositiveIntegerField(default=0)
 
     objects = DAGCategoryManager()
 
@@ -187,7 +186,6 @@ class DAGCategory(models.Model):
 
     class Meta:
         abstract = True
-        ordering = ['order']
         verbose_name = _('category')
         verbose_name_plural = _('categories')
 
