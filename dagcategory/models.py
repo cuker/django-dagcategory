@@ -1,12 +1,12 @@
 from django.conf import settings
-from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from django.utils.datastructures import SortedDict
 
 class DAGCategoryManager(models.Manager):
     def live(self):
-        return self.filter(sites__id=settings.SITE_ID)
+        return self.all()
 
     def toplevel(self):
         """
@@ -46,7 +46,6 @@ class DAGCategoryManager(models.Manager):
     def build_tree_structure(self, qs=None):
         """
         Semi-Efficiently builds a python structure representing this tree structure
-        Ignores any order you gave the queryset!
         Returns a list containing the root nodes
         All nodes have the following attributes prefetched:
             children_list - a python list of prefetched children
@@ -54,22 +53,26 @@ class DAGCategoryManager(models.Manager):
         """
         if qs is None:
             qs = self.live()
-        qs = qs.order_by('path')
+        #qs = qs.order_by('path')
+        nodes = SortedDict()
         ret = list()
-        previous = None
         for node in qs:
             node.children_list = list()
-            if node.depth:
-                while previous.depth > node.depth: #wind back
-                    previous = previous.parent
-                if previous.depth == node.depth: #sibling
-                    node.parent = previous.parent
-                else: #child
-                    node.parent = previous
-                node.parent.children_list.append(node)
-            else:
+            nodes[node.path] = node
+            if not node.parent_id:
                 ret.append(node)
-            previous = node
+        for node in nodes.itervalues():
+            parts = node.path.split(node.DELIMETER)
+            if len(parts) > 1:
+                subparts = parts[:-1]
+                parent_key = node.DELIMETER.join(subparts)
+                try:
+                    parent = nodes[parent_key]
+                except KeyError:
+                    pass #parent is inactive, therefore we are inactive
+                else:
+                    node.parent = parent
+                    parent.children_list.append(node)
         return ret
 
 class DAGCategory(models.Model):
@@ -82,19 +85,20 @@ class DAGCategory(models.Model):
     """
     name   = models.CharField(max_length=128)
     slug   = models.SlugField()
-    sites  = models.ManyToManyField(Site)
-    parent = models.ForeignKey('self', blank=True, null=True, related_name='children', verbose_name=_('Parent Section'), help_text=_("circular hierarchies will be auotomatically prevented"))
+    parent = models.ForeignKey('self', blank=True, null=True, related_name='children', verbose_name=_('Parent Section'), help_text=_("circular hierarchies will be automatically prevented"))
     # Magical path that is filled out inefficiently on pre-save
     # This is costly on save, but very effective when selecting parents
-    path   = models.CharField(max_length=255, blank=True, unique=True, editable=False)
+    path   = models.CharField(max_length=255, blank=True, db_index=True, editable=False)
     order  = models.PositiveIntegerField(default=0)
 
     objects = DAGCategoryManager()
 
-    DELIMETER = '::'
+    DELIMETER = '/'
 
     def __unicode__(self):
         return u'%s (%s)' % (self.name, self.path)
+    
+    #TODO children_list should be a lazy cache of children.all or set by build_tree_structure
 
     @property
     def depth(self):
@@ -157,9 +161,8 @@ class DAGCategory(models.Model):
     @property
     def inner_node(self):
         return not self.leaf_node
-
-    def save(self, *args, **kwargs):
-        # check for and prevent circular parentage, and rebuild path
+    
+    def _generate_path(self):
         path = self.slug
         parents = set((self.pk,))
         p = self
@@ -168,7 +171,11 @@ class DAGCategory(models.Model):
             assert p.pk not in parents, "Circular Parenting is not allowed"
             path = ''.join((p.slug, self.DELIMETER, path))
             parents.add(p.pk)
-        self.path = path
+        return path
+
+    def save(self, *args, **kwargs):
+        # check for and prevent circular parentage, and rebuild path
+        self.path = self._generate_path()
         super(DAGCategory, self).save(*args, **kwargs)
         # then update children (nodes that point to self)
         for c in self.children.all():
@@ -186,4 +193,6 @@ class DAGCategory(models.Model):
 
     urllize = lambda self: self.path.replace(self.DELIMETER, '/')
 
-    _all_subitems = lambda self, qs, field: qs.filter(**{field + '__path__startswith': self.path}).distinct()
+    def _all_subitems(self, qs, field):
+        return (qs.filter(**{field+"__path":self.path}) | qs.filter(**{field+"__path__startswith": self.path+self.DELIMETER})).distinct()
+

@@ -1,5 +1,4 @@
 from django.test import TestCase
-from django.contrib.sites.models import Site
 
 from models import *
 
@@ -17,13 +16,10 @@ class DAGTest(TestCase):
         item.save()
         root = TestCategory(name="root", slug="root")
         root.save()
-        root.sites.add(Site.objects.get_current())
         branch = TestCategory(name="branch", slug="branch", parent=root)
         branch.save()
-        branch.sites.add(Site.objects.get_current())
         leaf = TestCategory(name="leaf", slug="leaf", parent=branch)
         leaf.save()
-        leaf.sites.add(Site.objects.get_current())
         leaf.items.add(item)
         
         self.assertEqual(1, len(root.subcategories()))
@@ -63,9 +59,7 @@ class DAGTest(TestCase):
     def test_proper_subtreelookups(self):
         root = TestCategory(name="root", slug="root")
         root.save()
-        root.sites.add(Site.objects.get_current())
         rootroot = TestCategory(name="rootroot", slug="rootroot")
         rootroot.save()
-        rootroot.sites.add(Site.objects.get_current())
         self.assertFalse(root.all_children())
         

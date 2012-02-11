@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-VERSION = '0.0.1'
+VERSION = '0.0.2'
 LONG_DESC = """\
 DagCategory aims to be a query efficient solution to categories
 """
@@ -24,9 +24,14 @@ setup(name='django-dagcategory',
       maintainer_email = 'zbyte64@gmail.com',
       url='http://github.com/cuker/django-dagcategory',
       license='New BSD License',
-      packages=find_packages(exclude=['ez_setup', 'tests']),
+      packages=find_packages(exclude=['test_settings.py']),
       zip_safe=True,
       install_requires=[
       ],
-      test_suite='tests.runtests.runtests',
-      )
+      test_suite='setuptest.SetupTestSuite',
+      tests_require=(
+        'django-setuptest',
+      ),
+      include_package_data = True,
+)
+

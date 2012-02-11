@@ -14,10 +14,10 @@ def category_hierarchy(cl):
 
         link = lambda d: mark_safe(cl.get_query_string(d, [field_generic]))
         field = cl.opts.get_field_by_name(field_name)[0]
-        if hasattr(field, 'model'):
-            cat_model = field.model #foreignkey
-        else:
+        if hasattr(field, 'rel'):
             cat_model = field.rel.to #many2many
+        else:
+            cat_model = field.model #foreignkey
         if path_lookup:
             try:
                 category = cat_model.objects.get(path=path_lookup)
