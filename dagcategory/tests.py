@@ -14,11 +14,11 @@ class DAGTest(TestCase):
     def test_categories_form_a_directed_acyclic_graph(self):
         item = TestItem(field1="foo")
         item.save()
-        root = TestCategory(name="root", slug="root")
+        root = TestCategory(slug="root")
         root.save()
-        branch = TestCategory(name="branch", slug="branch", parent=root)
+        branch = TestCategory(slug="branch", parent=root)
         branch.save()
-        leaf = TestCategory(name="leaf", slug="leaf", parent=branch)
+        leaf = TestCategory(slug="leaf", parent=branch)
         leaf.save()
         leaf.items.add(item)
         
@@ -57,9 +57,9 @@ class DAGTest(TestCase):
         self.assertEqual(1, len(TestCategory.objects.build_tree_structure()))
     
     def test_proper_subtreelookups(self):
-        root = TestCategory(name="root", slug="root")
+        root = TestCategory(slug="root")
         root.save()
-        rootroot = TestCategory(name="rootroot", slug="rootroot")
+        rootroot = TestCategory(slug="rootroot")
         rootroot.save()
         self.assertFalse(root.all_children())
         

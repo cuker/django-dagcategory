@@ -3,13 +3,7 @@ from django.views.generic import ListView, DetailView
 
 from django.db.models.sql.query import FieldError
 
-from webcube.webcubecore.shortcuts import BadResponseView
-
 from models import DAGCategory
-
-class ResponseException(Exception):
-    def __init__(self, response):
-        self.response = response
 
 class DAGCategoryItemView(DetailView):
     pass
@@ -39,13 +33,14 @@ class DAGCategoryView(ListView):
     paginate_by = getattr(settings, 'DEFAULT_PAGINATE_BY', 20)
     max_view_all = None
     available_sorts = None
+    extra_args = 1
     
     def fetch_category_and_extras(self):
         if 'category' in self.kwargs:
             self.category = self.kwargs['category']
             self.extras = None
         else:
-            self.category, self.extras = self.category_model.objects.select_from_url(self.kwargs['path'], 1)
+            self.category, self.extras = self.category_model.objects.select_from_url(self.kwargs['path'], self.extra_args)
     
     def get_category(self):
         if not hasattr(self, 'category'):
@@ -90,14 +85,6 @@ class DAGCategoryView(ListView):
         order_by = self.get_order_by()
         if order_by:
             queryset = queryset.order_by(*order_by)
-            try:
-                if hasattr(queryset.query, 'as_sql'):
-                    queryset.query.as_sql()
-                else: #fix for Django 1.2 
-                    unicode(queryset.query) #TODO investigate if there is a better way, like a validate function
-            except FieldError:
-                raise ResponseException(BadResponseView(request=self.request).render_to_response({'why':'Invalid order option'}))
-        
         return queryset
     
     def dispatch(self, request, *args, **kwargs):
@@ -105,12 +92,9 @@ class DAGCategoryView(ListView):
         self.args = args
         self.kwargs = kwargs
         
-        try:
-            self.fetch_category_and_extras()
-            if self.extras and self.extras[0] != 'view-all':
-                return self.detail_view.as_view(queryset=self.get_queryset())(request, slug=self.extras[0], category=self.get_category())
-            return ListView.dispatch(self, request, *args, **kwargs)
-        except ResponseException, response_exception:
-            return response_exception.response
+        self.fetch_category_and_extras()
+        if self.extras and self.extras[0] != 'view-all':
+            return self.detail_view.as_view(queryset=self.get_queryset())(request, slug=self.extras[0], category=self.get_category())
+        return ListView.dispatch(self, request, *args, **kwargs)
 
 

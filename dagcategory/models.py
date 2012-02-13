@@ -83,7 +83,6 @@ class DAGCategory(models.Model):
     
     TODO: We should standardize the naming conventions, see http://en.wikipedia.org/wiki/Tree_(data_structure)
     """
-    name   = models.CharField(max_length=128)
     slug   = models.SlugField()
     parent = models.ForeignKey('self', blank=True, null=True, related_name='children', verbose_name=_('Parent Section'), help_text=_("circular hierarchies will be automatically prevented"))
     # Magical path that is filled out inefficiently on pre-save
@@ -95,7 +94,7 @@ class DAGCategory(models.Model):
     DELIMETER = '/'
 
     def __unicode__(self):
-        return u'%s (%s)' % (self.name, self.path)
+        return u'%s (%s)' % (self.slug, self.path)
     
     #TODO children_list should be a lazy cache of children.all or set by build_tree_structure
 
